@@ -7,10 +7,13 @@ class PatientInfo(abi.NamedTuple):
     age: abi.Field[abi.Uint16]
     allergies: abi.Field[abi.String]
     medications: abi.Field[abi.String]
-    consent: abi.Field[abi.String]
+    # consent: abi.Field[abi.String]
 
 class EMSightsState:
-    patient_info = BoxMapping(abi.Address, PatientInfo)
+    # patient_info = BoxMapping(abi.Address, PatientInfo)
+    dispatcher = GlobalStateValue(TealType.bytes)
+    emergency_queue = GlobalStateValue(TealType.bytes)
+    queue_size = GlobalStateValue(TealType.uint64)
 
     # Role
     role = LocalStateValue(TealType.bytes)
@@ -22,13 +25,17 @@ class EMSightsState:
     medications = LocalStateValue(TealType.bytes)
     consent = LocalStateValue(TealType.bytes)
     device = LocalStateValue(TealType.bytes)
+    responder = LocalStateValue(TealType.bytes)
 
 
 emsights = Application("EMSights", state=EMSightsState())
 
 @emsights.create
 def create():
-    return emsights.initialize_global_state()
+    return Seq(
+        emsights.initialize_global_state(),
+        emsights.state.dispatcher.set(Txn.sender())
+    )
 
 @emsights.opt_in
 def opt_in():
@@ -59,6 +66,15 @@ def patientConsent(consent : abi.String):
     )
 
 @emsights.external
+def patientTriggerEmergency():
+    return Seq(
+        Assert(emsights.state.role == Bytes("P")),
+        emsights.state.emergency_queue.set(Concat(emsights.state.emergency_queue, Txn.sender())),
+        emsights.state.queue_size.set(emsights.state.queue_size + Int(32))
+    )
+
+
+@emsights.external
 def patientRegisterDevice(device : abi.Account):
     return Seq(
         Assert(emsights.state.role == Bytes("P")),
@@ -70,91 +86,21 @@ def patientRegisterDevice(device : abi.Account):
 def registerAsDevice():
     return emsights.state.role.set(Bytes("D"))
 
-# @emsights.external
-# def patientSetName(name : abi.String):
-#     # contents = PatientInfo()
-#     return Seq(
-#         # Assert(emsights.state.patient_info[Txn.sender()].exists()),
-#         # (pt_info := PatientInfo()).decode(emsights.state.patient_info[Txn.sender()].get()),
-#         Assert(emsights.state.role == Bytes("Patient")),
-#         emsights.state.name.set(name.get())
-#     )
+@emsights.external
+def dispatcherSelectResponder(responder : abi.Account, patient : abi.Account):
+    return Seq(
+        Assert(Txn.sender() == emsights.state.dispatcher),
+        App.localPut(patient.address(), Bytes("responder"), responder.address()),
+        emsights.state.emergency_queue.set(Substring(emsights.state.emergency_queue.get(), Int(0), emsights.state.queue_size - Int(32))),
+        emsights.state.queue_size.set(emsights.state.queue_size - Int(32))
+    )
 
-# @emsights.external
-# def patientGetName(*, output : abi.String):
-#     return Seq(
-#         Assert(emsights.state.role == Bytes("Patient")),
-#         (test := abi.String()).decode(emsights.state.name),
-#         output.decode(emsights.state.role.get())
-#     )
-
-# @app.external(authorize=onlyPatient)
-# def patientGetName(*, output : abi.DynamicArray[abi.String]):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return output.set(App.box_get(ptKey)[0])
-
-# @app.external(authorize=onlyPatient)
-# def patientSetAge(age : abi.Uint16):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return Seq(
-#         contents := App.box_get(ptKey).value(),
-#         App.box_put(ptKey,
-#             PatientInfo(
-#                 contents[0],
-#                 age,
-#                 contents[2],
-#                 contents[3],
-#                 contents[4]
-#             )
-#         )
-#     )
-
-# @app.external(authorize=onlyPatient)
-# def patientGetAge(*, output : abi.Uint16):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return output.set(App.box_get(ptKey)[1])
-
-# @app.external(authorize=onlyPatient)
-# def patientSetAllergies(allergies : abi.DynamicArray[abi.String]):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return Seq(
-#         contents := App.box_get(ptKey).value(),
-#         App.box_put(ptKey,
-#             PatientInfo(
-#                 contents[0],
-#                 contents[1],
-#                 allergies,
-#                 contents[3],
-#                 contents[4]
-#             )
-#         )
-#     )
-
-# @app.external(authorize=onlyPatient)
-# def patientGetAllergies(*, output : abi.DynamicArray[abi.String]):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return output.set(App.box_get(ptKey)[2])
-
-# @app.external(authorize=onlyPatient)
-# def patientSetMedications(medications : abi.DynamicArray[abi.String]):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return Seq(
-#         contents := App.box_get(ptKey).value(),
-#         App.box_put(ptKey,
-#             PatientInfo(
-#                 contents[0],
-#                 contents[1],
-#                 contents[2],
-#                 medications,
-#                 contents[4]
-#             )
-#         )
-#     )
-
-# @app.external(authorize=onlyPatient)
-# def patientGetMedications(*, output : abi.DynamicArray[abi.String]):
-#     ptKey = Concat(Txn.sender(), Bytes("p"))
-#     return output.set(App.box_get(ptKey)[3])
+@emsights.external
+def responderQueryInformation(patient : abi.Account, field : abi.String, *, output : abi.String):
+    return Seq(
+        Assert(App.localGet(patient.address(), Bytes("responder")) == Txn.sender()),
+        output.set(App.localGet(patient.address(), field.get()))
+    )
 
 if __name__ == "__main__":
     emsights.build().export("./artifacts")
