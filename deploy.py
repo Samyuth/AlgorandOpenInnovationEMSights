@@ -1,12 +1,21 @@
-from emsights import emsights, registerAsPatient, patientConsent, registerAsDevice, patientRegisterDevice, patientTriggerEmergency, dispatcherSelectResponder, responderQueryInformation
+from emsights import (
+    emsights,
+    registerAsPatient,
+    patientConsent,
+    registerAsDevice,
+    patientRegisterDevice,
+    patientTriggerEmergency,
+    dispatcherSelectResponder, 
+    responderQueryInformation
+)
+
 from beaker import localnet, client
 from algosdk.encoding import decode_address
 from algosdk import kmd, wallet, account
 
 emsights.build().export("./artifacts")
 
-# print(localnet.kmd.get_accounts())
-
+# get localnet accounts
 accounts = localnet.kmd.get_accounts()
 patient = accounts[0]
 device = accounts[1]
@@ -20,10 +29,10 @@ pt_client = client.ApplicationClient(
     signer=patient.signer,
 )
 
-# pt_client.fund(consts.algo * 1500)
-
+# dispatcher creates the emsights contract
 pt_client.create(sender=dispatcher.address, signer=dispatcher.signer)
 
+# patient opts in to the contract and so does the device
 pt_client.opt_in()
 pt_client.opt_in(sender=device.address, signer=device.signer)
 
@@ -35,13 +44,13 @@ print()
 address = patient.address
 pk = decode_address(address)
 
+# Call register patient function
 pt_client.call(
     registerAsPatient,
     name = "Samyuth S Sagi",
     age = 21,
     allergies = "[dust]",
-    medications = "",
-    # boxes=[tuple([pt_client.app_id, decode_address(patient.address)])]
+    medications = ""
 )
 
 print(pt_client.get_global_state())
@@ -49,6 +58,7 @@ print(pt_client.get_local_state(patient.address))
 print(pt_client.get_local_state(device.address))
 print()
 
+# register an account as a device
 # pt_client.call(
 #     registerAsDevice,
 #     sender=device.address,
@@ -60,6 +70,7 @@ print()
 # print(pt_client.get_local_state(device.address))
 # print()
 
+# get the patient to register the device
 # pt_client.call(
 #     patientRegisterDevice,
 #     device=device.address
@@ -70,6 +81,7 @@ print()
 # print(pt_client.get_local_state(device.address))
 # print()
 
+# patient consents to information they are willing to release
 pt_client.call(
     patientConsent,
     consent="TTTF"
@@ -81,6 +93,7 @@ print(pt_client.get_local_state(device.address))
 print()
 
 
+# a patient has an emergency
 pt_client.call(
     patientTriggerEmergency
 )
@@ -90,6 +103,7 @@ print(pt_client.get_local_state(patient.address))
 print(pt_client.get_local_state(device.address))
 print()
 
+# patient once again triggers an emergency
 pt_client.call(
     patientTriggerEmergency
 )
@@ -99,6 +113,7 @@ print(pt_client.get_local_state(patient.address))
 print(pt_client.get_local_state(device.address))
 print()
 
+# the dispatcher address chooses a responder
 pt_client.call(
     dispatcherSelectResponder,
     responder=dispatcher.address,
