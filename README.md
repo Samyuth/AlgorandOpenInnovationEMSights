@@ -20,6 +20,13 @@ Start up the local net for algokit
 algokit localnet start
 ```
 
+Navigate to the KMD portal in Dappflow at https://app.dappflow.org/kmd-portal. Alternatively navigate here by opening Dappflow using
+```
+algokit localnet explore
+```
+
+Open the default unencrypted wallet and click connect without typing anything for the password. Upon connecting create two new accounts so that there are a total of 5 accounts. Add the new accounts to dev wallets. Navigate to the dev wallets portal at https://app.dappflow.org/dev-wallets and click dispense for the new accounts to dispense localnet funds to these accounts.
+
 Run the test script to examine a test run of the contract
 ```
 python deploy.py
