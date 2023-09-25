@@ -1,16 +1,7 @@
 from beaker import *
 from pyteal import *
-from beaker.lib.storage import BoxMapping
-
-class PatientInfo(abi.NamedTuple):
-    name: abi.Field[abi.String]
-    age: abi.Field[abi.Uint16]
-    allergies: abi.Field[abi.String]
-    medications: abi.Field[abi.String]
-    # consent: abi.Field[abi.String]
 
 class EMSightsState:
-    # patient_info = BoxMapping(abi.Address, PatientInfo)
     dispatcher = GlobalStateValue(TealType.bytes)
     emergency_queue = GlobalStateValue(TealType.bytes)
     queue_size = GlobalStateValue(TealType.uint64)
@@ -47,9 +38,6 @@ def registerAsPatient(name : abi.String, age: abi.Uint16, allergies: abi.String,
     return Seq(
         emsights.state.role.set(Bytes("P")),
         (consent := abi.String()).set("FFFF"),
-        # (pt_info := PatientInfo()).set(name, age, allergies, medications, consent),
-        # App.box_create(Txn.sender(), Int(10) )
-        # emsights.state.patient_info[Txn.sender()].set(pt_info),
         emsights.state.name.set(name.get()),
         emsights.state.age.set(age.get()),
         emsights.state.allergies.set(allergies.get()),
@@ -65,6 +53,7 @@ def patientConsent(consent : abi.String):
         emsights.state.consent.set(consent.get())
     )
 
+# A patient triggers an emergency
 @emsights.external
 def patientTriggerEmergency():
     return Seq(
@@ -74,6 +63,7 @@ def patientTriggerEmergency():
     )
 
 
+# Patient registers a device
 @emsights.external
 def patientRegisterDevice(device : abi.Account):
     return Seq(
@@ -81,11 +71,12 @@ def patientRegisterDevice(device : abi.Account):
         emsights.state.device.set(device.address())
     )
 
-# Register an account as a device
+# An address registers as a device
 @emsights.external
 def registerAsDevice():
     return emsights.state.role.set(Bytes("D"))
 
+# Dispatcher chooses a responder to give access to a patients information
 @emsights.external
 def dispatcherSelectResponder(responder : abi.Account, patient : abi.Account):
     return Seq(
@@ -95,6 +86,7 @@ def dispatcherSelectResponder(responder : abi.Account, patient : abi.Account):
         emsights.state.queue_size.set(emsights.state.queue_size - Int(32))
     )
 
+# Responder queries patient information
 @emsights.external
 def responderQueryInformation(patient : abi.Account, field : abi.String, *, output : abi.String):
     return Seq(
