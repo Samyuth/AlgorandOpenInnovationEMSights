@@ -94,5 +94,12 @@ def responderQueryInformation(patient : abi.Account, field : abi.String, *, outp
         output.set(App.localGet(patient.address(), field.get()))
     )
 
+@emsights.external
+def responderTransferCare(patient : abi.Account, reciever : abi.Account):
+    return Seq(
+        Assert(App.localGet(patient.address(), Bytes("responder")) == Txn.sender()),
+        App.localPut(patient.address(), Bytes("responder"), reciever.address())
+    )
+
 if __name__ == "__main__":
     emsights.build().export("./artifacts")

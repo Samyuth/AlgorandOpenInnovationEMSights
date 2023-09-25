@@ -6,7 +6,8 @@ from emsights import (
     patientRegisterDevice,
     patientTriggerEmergency,
     dispatcherSelectResponder, 
-    responderQueryInformation
+    responderQueryInformation,
+    responderTransferCare
 )
 
 from beaker import localnet, client
@@ -20,7 +21,8 @@ accounts = localnet.kmd.get_accounts()
 patient = accounts[0]
 device = accounts[1]
 dispatcher = accounts[2]
-# emt = accounts[3]
+emt = accounts[3]
+physician = accounts[4]
 
 pt_client = client.ApplicationClient(
     client=localnet.get_algod_client(),
@@ -116,7 +118,7 @@ print()
 # the dispatcher address chooses a responder
 pt_client.call(
     dispatcherSelectResponder,
-    responder=dispatcher.address,
+    responder=emt.address,
     patient=patient.address,
     sender=dispatcher.address,
     signer=dispatcher.signer
@@ -127,15 +129,55 @@ print(pt_client.get_local_state(patient.address))
 print(pt_client.get_local_state(device.address))
 print()
 
+# responder can now view specific information
 rt = pt_client.call(
     responderQueryInformation,
     patient=patient.address,
     field="allergies",
-    sender=dispatcher.address,
-    signer=dispatcher.signer
+    sender=emt.address,
+    signer=emt.signer
 ).return_value
 
 print(pt_client.get_global_state())
 print(pt_client.get_local_state(patient.address))
 print(pt_client.get_local_state(device.address))
 print(rt)
+print()
+
+# responder transfers care to physician
+pt_client.call(
+    responderTransferCare,
+    patient=patient.address,
+    reciever=physician.address,
+    sender=emt.address,
+    signer=emt.signer
+)
+
+print(pt_client.get_global_state())
+print(pt_client.get_local_state(patient.address))
+print(pt_client.get_local_state(device.address))
+print()
+
+# # emt can no longer view patient information
+# rt = pt_client.call(
+#     responderQueryInformation,
+#     patient=patient.address,
+#     field="allergies",
+#     sender=emt.address,
+#     signer=emt.signer
+# ).return_value
+
+# physician can now view patient information
+rt = pt_client.call(
+    responderQueryInformation,
+    patient=patient.address,
+    field="allergies",
+    sender=physician.address,
+    signer=physician.signer
+).return_value
+
+print(pt_client.get_global_state())
+print(pt_client.get_local_state(patient.address))
+print(pt_client.get_local_state(device.address))
+print(rt)
+print()
