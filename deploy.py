@@ -1,22 +1,20 @@
 from emsights import emsights, registerAsPatient, patientConsent, registerAsDevice, patientRegisterDevice, patientTriggerEmergency, dispatcherSelectResponder, responderQueryInformation
-from beaker import sandbox, client, consts
-from beaker.sandbox import SandboxAccount
+from beaker import localnet, client
 from algosdk.encoding import decode_address
 from algosdk import kmd, wallet, account
 
-# app.build().export("./artifacts")
 emsights.build().export("./artifacts")
 
-# print(sandbox.kmd.get_accounts())
+# print(localnet.kmd.get_accounts())
 
-accounts = sandbox.kmd.get_accounts()
+accounts = localnet.kmd.get_accounts()
 patient = accounts[0]
 device = accounts[1]
 dispatcher = accounts[2]
 # emt = accounts[3]
 
 pt_client = client.ApplicationClient(
-    client=sandbox.get_algod_client(),
+    client=localnet.get_algod_client(),
     app=emsights,
     sender=patient.address,
     signer=patient.signer,
