@@ -29,7 +29,8 @@ def dispense_funds(new_accounts=[]):
         client.send_transaction(paymenttxn)
 
 
-if __name__ == "__main__":
+# Function to start the account and initially dispense funds
+def setup_accounts():
     #  Starting localnet if it hasn't already started
     try:
         node_status = localnet.get_algod_client().health()
@@ -55,3 +56,19 @@ if __name__ == "__main__":
         if client.account_info(acc.address)['amount'] == 0:
             dispense_list.append((acc.private_key, acc.address))
     dispense_funds(dispense_list)
+
+# Function to redispense funds if needed
+def redispense_funds():
+    client = localnet.get_algod_client()
+    accounts = localnet.kmd.get_accounts()
+
+    # Dispense to accounts if the accounts have less than 100 algos
+    dispense_list = []
+    for acc in accounts:
+        if client.account_info(acc.address)['amount'] < 100000000:
+            dispense_list.append((acc.private_key, acc.address))
+    dispense_funds(dispense_list)
+
+if __name__ == "__main__":
+    setup_accounts()
+    redispense_funds()
