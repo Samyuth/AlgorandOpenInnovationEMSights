@@ -1,6 +1,6 @@
-from beaker import localnet, client
-from algosdk.encoding import decode_address
-from algosdk import kmd, wallet, account, transaction
+from beaker import localnet
+from algosdk import account, transaction
+import subprocess
 
 # generate new accounts
 def add_new_accounts(n=3):
@@ -30,19 +30,28 @@ def dispense_funds(new_accounts=[]):
 
 
 if __name__ == "__main__":
-    # Create accounts and dispense funds
-    new_accounts = add_new_accounts()
-    dispense_funds(new_accounts)
+    #  Starting localnet if it hasn't already started
+    try:
+        node_status = localnet.get_algod_client().health()
+    except:
+        subprocess.run(["algokit", "localnet", "start"])
 
-    client = localnet.get_algod_client()
-
-    # get accounts
     accounts = localnet.kmd.get_accounts()
 
-    print(len(accounts))
-    print()
-    print()
-    print(client.account_info(accounts[0].address)['amount'])
+    # Different situations to add accounts or money
+    if len(accounts) == 3:
+        new_accounts = add_new_accounts()
+        dispense_funds(new_accounts)
+    elif len(accounts) < 6:
+        new_accounts = add_new_accounts(6-len(accounts))
+        dispense_funds(new_accounts)
 
-    for acc in new_accounts:
-        print(client.account_info(acc[1])['amount'])
+    client = localnet.get_algod_client()
+    accounts = localnet.kmd.get_accounts()
+
+    # Further if any accounts don't have enough money first account will deposit
+    dispense_list = []
+    for acc in accounts:
+        if client.account_info(acc.address)['amount'] == 0:
+            dispense_list.append((acc.private_key, acc.address))
+    dispense_funds(dispense_list)
